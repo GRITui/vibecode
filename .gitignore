@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Swift
+.build/
+*.xcodeproj/
+*.xcworkspace/
+Package.resolved
+.swiftpm/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+*.env.local
+
+# Logs
+*.log
+logs/
+
+# Backups
+backups/
+*.tar.gz
+*.zip
+
+# Node
+node_modules/
