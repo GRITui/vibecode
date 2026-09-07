@@ -4,6 +4,8 @@ import TelegramBot
 import OrbStack
 import SelfHeal
 import HealthMonitor
+import LLMConfig
+import WebServer
 
 @Test func telegramModels() async throws {
     // Test TelegramUpdate decoding
@@ -181,5 +183,91 @@ import HealthMonitor
     
     let result = await monitor.applySmallModelDecision("ignore")
     #expect(result == "Ignored")
+}
+
+// MARK: - LLMConfig / Model Evaluation Tests (Issue #3)
+
+@Test func llmConfigFallbackChainIncludesGLM() async throws {
+    let config = LLMConfig.fromEnvironment()
+    #expect(config.fallbackModels.contains("z-ai/glm-5.2:free"))
+    #expect(config.primaryModel == "gpt-4o-mini")
+    #expect(config.monthlyBudgetUSD == 15.0)
+}
+
+@Test func llmConfigSelectModelFallback() async throws {
+    let config = LLMConfig(
+        primaryModel: "gpt-4o-mini",
+        fallbackModels: ["z-ai/glm-5.2:free", "openai/gpt-4o-mini"]
+    )
+    #expect(config.selectModel(attempt: 0) == "gpt-4o-mini")
+    #expect(config.selectModel(attempt: 1) == "z-ai/glm-5.2:free")
+    #expect(config.selectModel(attempt: 2) == "openai/gpt-4o-mini")
+    #expect(config.selectModel(attempt: 99) == "openai/gpt-4o-mini")
+}
+
+@Test func modelRegistryEvaluationAndRecommendation() async throws {
+    let registry = ModelRegistry.shared
+    registry.recordEvaluation(
+        model: "z-ai/glm-5.2:free",
+        toolCallingReliable: true,
+        latencyMs: 850,
+        notes: "Fast, reliable tool calling in staging"
+    )
+    registry.recordEvaluation(
+        model: "gpt-4o-mini",
+        toolCallingReliable: true,
+        latencyMs: 420,
+        notes: "Baseline"
+    )
+    registry.recordEvaluation(
+        model: "bad-model",
+        toolCallingReliable: false,
+        latencyMs: 1200,
+        notes: "Unreliable"
+    )
+
+    #expect(registry.evaluation(for: "z-ai/glm-5.2:free")?.toolCallingReliable == true)
+    #expect(registry.recommendedPrimary() == "gpt-4o-mini")
+}
+
+// MARK: - LiteLLM Budget Alert Tests (Issue #40)
+
+@Test func litellmBudgetAlertParsing() async throws {
+    let json = """
+    {
+        "budget_alert": true,
+        "budget_limit": 15.0,
+        "current_spend": 14.50,
+        "projected_spend": 16.20,
+        "alert_type": "budget_threshold",
+        "user_email": "ops@example.com",
+        "team_name": "vibecode"
+    }
+    """
+
+    let alert = LiteLLMBudgetAlert.parse(from: json)
+    #expect(alert != nil)
+    #expect(alert?.budgetAlert == true)
+    #expect(alert?.budgetLimit == 15.0)
+    #expect(alert?.currentSpend == 14.50)
+    #expect(alert?.projectedSpend == 16.20)
+    #expect(alert?.alertType == "budget_threshold")
+    #expect(alert?.userEmail == "ops@example.com")
+    #expect(alert?.teamName == "vibecode")
+}
+
+@Test func litellmBudgetAlertParsingMinimal() async throws {
+    let json = """
+    {
+        "budget_alert": true,
+        "budget_limit": 15.0,
+        "current_spend": 14.50,
+        "alert_type": "budget_threshold"
+    }
+    """
+
+    let alert = LiteLLMBudgetAlert.parse(from: json)
+    #expect(alert != nil)
+    #expect(alert?.projectedSpend == nil)
 }
 

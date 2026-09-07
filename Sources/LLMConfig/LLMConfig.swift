@@ -56,17 +56,21 @@ public struct LLMConfig {
 }
 
 /// Registry for evaluating and tracking model capabilities.
-public struct ModelRegistry {
+public final class ModelRegistry {
     public static let shared = ModelRegistry()
 
     private var evaluations: [String: ModelEvaluation] = [:]
+    private let lock = NSLock()
 
-    public mutating func recordEvaluation(
+    private init() {}
+
+    public func recordEvaluation(
         model: String,
         toolCallingReliable: Bool,
         latencyMs: Int,
         notes: String
     ) {
+        lock.lock()
         evaluations[model] = ModelEvaluation(
             model: model,
             toolCallingReliable: toolCallingReliable,
@@ -74,14 +78,19 @@ public struct ModelRegistry {
             notes: notes,
             evaluatedAt: Date()
         )
+        lock.unlock()
     }
 
     public func evaluation(for model: String) -> ModelEvaluation? {
-        evaluations[model]
+        lock.lock()
+        defer { lock.unlock() }
+        return evaluations[model]
     }
 
     public func recommendedPrimary() -> String? {
-        evaluations
+        lock.lock()
+        defer { lock.unlock() }
+        return evaluations
             .values
             .filter(\.toolCallingReliable)
             .min(by: { $0.latencyMs < $1.latencyMs })?

@@ -113,10 +113,15 @@ public actor WebServer {
             let buffer = try await request.body.collect(upTo: 1024 * 1024)
             let bodyString = String(buffer: buffer)
             print("💰 LiteLLM budget alert received: \(bodyString)")
-            if let bot = telegramBot, let chatId = authorizedChatId {
+            let alert = LiteLLMBudgetAlert.parse(from: bodyString)
+            if let bot = telegramBot, let chatId = authorizedChatId, let alert = alert {
+                let pct = String(format: "%.1f", (alert.currentSpend / alert.budgetLimit) * 100)
                 let alertMessage = """
                 🚨 **LiteLLM Budget Alert**
-                \(bodyString)
+                • Current spend: $\(String(format: "%.2f", alert.currentSpend)) / $\(String(format: "%.2f", alert.budgetLimit))
+                • Usage: \(pct)% of monthly cap
+                • Type: \(alert.alertType)
+                \(alert.projectedSpend.map { "• Projected: $\(String(format: "%.2f", $0))" } ?? "")
                 
                 Check your usage dashboard.
                 """
@@ -314,4 +319,30 @@ struct MeResponse: Codable {
     let userId: Int64
     let firstName: String
     let username: String?
+}
+
+/// LiteLLM budget alert payload parser (Issue #40)
+public struct LiteLLMBudgetAlert: Codable {
+    public let budgetAlert: Bool
+    public let budgetLimit: Double
+    public let currentSpend: Double
+    public let projectedSpend: Double?
+    public let alertType: String
+    public let userEmail: String?
+    public let teamName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case budgetAlert = "budget_alert"
+        case budgetLimit = "budget_limit"
+        case currentSpend = "current_spend"
+        case projectedSpend = "projected_spend"
+        case alertType = "alert_type"
+        case userEmail = "user_email"
+        case teamName = "team_name"
+    }
+
+    public static func parse(from jsonString: String) -> LiteLLMBudgetAlert? {
+        guard let data = jsonString.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(LiteLLMBudgetAlert.self, from: data)
+    }
 }

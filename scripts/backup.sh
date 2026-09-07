@@ -6,7 +6,7 @@ set -e
 
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 KEEP_LAST_N="${KEEP_LAST_N:-10}"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+TIMESTAMP=$(date +%Y%m%d_%H%M%S%N)
 BACKUP_NAME="vibecode_backup_${TIMESTAMP}.tar.gz"
 BACKUP_PATH="${BACKUP_DIR}/${BACKUP_NAME}"
 

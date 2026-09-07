@@ -9,7 +9,8 @@ echo ""
 ENV_FILE=".env"
 if [ -f "$ENV_FILE" ]; then
     echo "⚠️  .env already exists."
-    read -p "Do you want to overwrite it? [y/N] " -n 1 -r
+    read -p "Do you want to overwrite it? [y/N] " -r
+    REPLY="${REPLY:0:1}"
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo "✅ Keeping existing .env. Skipping prompt."

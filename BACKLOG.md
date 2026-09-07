@@ -94,7 +94,7 @@ This backlog captures features, enhancements, and known items derived from the p
 | INF-1 | macOS 14.0+ support | ✅ | Sonoma or later |
 | INF-2 | Swift 5.9+ support | ✅ | Xcode 15+ |
 | INF-3 | OrbStack detection | 🚧 | Ensure `docker --version` works |
-| INF-4 | Project build & test CI | ⬜ | Add GitHub Actions or similar |
+| INF-4 | Project build & test CI | ✅ | GitHub Actions workflow added (`ci.yml`) |
 | INF-5 | Documentation site | ⬜ | Generate docs from inline comments |
 | INF-6 | Release automation | ⬜ | Tagged releases with changelog |
 
@@ -123,9 +123,9 @@ This backlog captures features, enhancements, and known items derived from the p
 
 | Issue | Status | Notes |
 |-------|--------|-------|
-| #11 Telegram Bot MVP | ✅ Closed | MVP complete: commands, inline keyboards, webhooks. Follow-ups: persistent chat history (#11-follow-up), advanced command parsing. |
-| #3 Evaluate z-ai/glm-5.2:free | 🚧 In Progress | Added `LLMConfig` module with model registry and LiteLLM proxy support. Awaiting end-to-end tool-calling test results to decide placement in fallback chain. |
-| #40 LiteLLM Budget Alert Webhooks | 🚧 In Progress | Webhook endpoint `/webhook/litellm-budget` wired; awaiting live test with $15/month cap and alert routing to Telegram. |
+| #1 Telegram Bot MVP | ✅ Closed | MVP complete: commands, inline keyboards, webhooks. Follow-ups: persistent chat history, advanced command parsing, rate limiting. |
+| #2 Evaluate z-ai/glm-5.2:free | 🚧 In Progress | Added `LLMConfig` module with model registry and LiteLLM proxy support. Evaluation script `scripts/evaluate-model.sh` added. Awaiting live API test to decide placement in fallback chain. |
+| #3 LiteLLM Budget Alert Webhooks | 🚧 In Progress | Webhook endpoint `/webhook/litellm-budget` wired; test script `scripts/test-budget-webhook.sh` added. Awaiting live test with $15/month cap and alert routing to Telegram. |
 
 ---
 

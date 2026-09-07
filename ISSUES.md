@@ -4,7 +4,7 @@ Mirrors and augments GitHub issues for offline/Sprint work.
 
 ---
 
-## #11 — Telegram Bot MVP
+## #1 — Telegram Bot MVP (GitHub #1)
 **Status:** ✅ Closed (Sprint 1)
 **Resolution:** MVP complete as of Sprint 1.
 
@@ -21,34 +21,38 @@ Mirrors and augments GitHub issues for offline/Sprint work.
 
 ---
 
-## #3 — Evaluate z-ai/glm-5.2:free
+## #2 — Evaluate z-ai/glm-5.2:free (GitHub #2)
 **Status:** 🚧 In Progress (Sprint 1)
 **Goal:** Test tool-calling reliability; decide if it replaces current primary or gets added to fallback chain.
 
 ### Current State
-- Added `LLMConfig` module with model registry
+- Added `LLMConfig` module with model registry (thread-safe singleton)
 - Fallback chain: `gpt-4o-mini` → `z-ai/glm-5.2:free` → `openai/gpt-4o-mini` → `anthropic/claude-3-haiku`
-- `ModelRegistry` can record evaluations per model
+- `ModelRegistry` can record evaluations per model and recommend the lowest-latency reliable model
+- Unit tests validate fallback chain inclusion, model selection, and registry recommendation logic
+- Evaluation script `scripts/evaluate-model.sh` added for live testing
 
 ### Pending
-- End-to-end tool-calling test with `z-ai/glm-5.2:free`
-- Measure latency and reliability
+- End-to-end tool-calling test with live `z-ai/glm-5.2:free` API
+- Measure latency and reliability against real payloads
 - Decision: primary replacement vs. fallback-only
 
 ---
 
-## #40 — Configure LiteLLM Budget Alert Webhooks
+## #3 — Configure LiteLLM Budget Alert Webhooks (GitHub #3)
 **Status:** 🚧 In Progress (Sprint 1)
 **Goal:** Wire webhook alerts for the $15/month hard cap.
 
 ### Current State
 - Webhook endpoint `/webhook/litellm-budget` added to `WebServer`
-- Alerts forwarded to Telegram configured chat ID
+- `LiteLLMBudgetAlert` parser handles LiteLLM JSON payload with budget fields
+- Alerts forwarded to Telegram with formatted spend / limit / percentage summary
 - Environment variables: `LITELLM_BUDGET_WEBHOOK_URL`, `LITELLM_MONTHLY_BUDGET_USD`
+- Unit tests validate payload parsing (full and minimal)
+- Integration test script `scripts/test-budget-webhook.sh` added
 
 ### Pending
 - Live test with actual LiteLLM proxy sending budget threshold payload
-- Validate Telegram alert formatting
 - Wire into n8n workflow if needed
 
 ---
