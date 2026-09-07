@@ -85,7 +85,7 @@ if [ -z "$SKIP_PROMPT" ]; then
         read -p "LITELLM_BUDGET_WEBHOOK_URL (optional): " BUDGET_WEBHOOK
     fi
 
-    cat > "$ENV_FILE" <<EOF
+    cat > "$ENV_FILE" <<ENVOF
 # Telegram Bot Configuration
 TELEGRAM_BOT_TOKEN=$TOKEN
 TELEGRAM_CHAT_ID=$CHAT_ID
@@ -103,7 +103,7 @@ LITELLM_API_KEY=$LITELLM_KEY
 
 # Budget Alert Webhook
 LITELLM_BUDGET_WEBHOOK_URL=$BUDGET_WEBHOOK
-EOF
+ENVOF
     echo ""
     echo "✅ .env created successfully."
 fi
