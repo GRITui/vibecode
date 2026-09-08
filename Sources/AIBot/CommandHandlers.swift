@@ -13,6 +13,7 @@ extension AIBotOrchestrator {
         • OrbStack: ✅ Connected
         • Active Containers: \(containers.count)
         • Bot Status: \(isRunning ? "🟢 Running" : "🔴 Stopped")
+        • AI Provider: \(selectedProvider.displayName)
         """
         
         try await telegramBot.sendMessage(chatId: chatId, text: status)
@@ -125,5 +126,75 @@ extension AIBotOrchestrator {
         }
         
         try await telegramBot.sendMessage(chatId: chatId, text: text)
+    }
+
+    /// ISS-2: bot-not-responding diagnostics — reports the signals most likely to explain
+    /// "the bot isn't responding" without requiring log access.
+    func handleDiagCommand(chatId: Int) async throws {
+        var text = "🔍 Diagnostics\n\n"
+
+        text += "• Token: \(telegramBot.tokenPrefix)…\n"
+        text += "• Chat: \(chatId == authorizedChatId ? "✅ authorized" : "❌ unauthorized (expected \(authorizedChatId))")\n"
+
+        let reachable = (try? await telegramBot.getMe()) ?? false
+        text += "• Telegram API reachable: \(reachable ? "✅" : "❌")\n"
+
+        switch await orbStack.checkAvailability() {
+        case .available(let version):
+            text += "• OrbStack: ✅ \(version)\n"
+        case .commandNotFound:
+            text += "• OrbStack: ❌ command not found\n"
+        case .commandFailed(let reason):
+            text += "• OrbStack: ❌ \(reason)\n"
+        }
+
+        if let status = await healthMonitor.getLastStatus() {
+            let age = Date().timeIntervalSince(status.timestamp)
+            text += "• Last health check: \(String(format: "%.0f", age))s ago\n"
+        } else {
+            text += "• Last health check: none recorded yet\n"
+        }
+
+        try await telegramBot.sendMessage(chatId: chatId, text: text)
+    }
+
+    func handleProviderCommand(chatId: Int) async throws {
+        let keyboard = AIProvider.createProviderKeyboard()
+
+        try await telegramBot.sendMessage(
+            chatId: chatId,
+            text: "🧑‍💻 Choose an AI coding CLI:",
+            replyMarkup: keyboard
+        )
+    }
+
+    func handleTaskCommand(chatId: Int, prompt: String) async throws {
+        guard !prompt.isEmpty else {
+            try await telegramBot.sendMessage(
+                chatId: chatId,
+                text: "Usage: /task <prompt>"
+            )
+            return
+        }
+
+        do {
+            let provider = selectedProvider
+            let output = try await orbStack.execInContainer(
+                name: "test-container",
+                command: [provider.cliBinary, prompt]
+            )
+
+            let truncated = output.count > 3500 ? String(output.prefix(3500)) + "\n…(truncated)" : output
+            try await telegramBot.sendMessage(
+                chatId: chatId,
+                text: "🤖 \(provider.displayName) output:\n\n\(truncated)"
+            )
+        } catch {
+            print("❌ Error running /task: \(error)")
+            try? await telegramBot.sendMessage(
+                chatId: chatId,
+                text: "❌ Task execution failed: \(error.localizedDescription)"
+            )
+        }
     }
 }

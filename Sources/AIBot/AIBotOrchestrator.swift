@@ -18,6 +18,7 @@ public final class AIBotOrchestrator {
     
     private var lastUpdateId: Int = 0
     var isRunning = false
+    var selectedProvider: AIProvider = .claude
     
     public init(
         botToken: String,
@@ -65,11 +66,18 @@ public final class AIBotOrchestrator {
         print("🧠 LLM Primary Model: \(llmConfig.primaryModel)")
         print("🧠 LLM Fallbacks: \(llmConfig.fallbackModels.joined(separator: ", "))")
         
-        let hasOrbStack = try await orbStack.verifyOrbStack()
-        guard hasOrbStack else {
-            throw BotOrchestratorError.orbStackNotAvailable
+        switch await orbStack.checkAvailability() {
+        case .available(let version):
+            print("✅ OrbStack verified (\(version))")
+        case .commandNotFound:
+            throw BotOrchestratorError.orbStackNotAvailable(
+                "OrbStack CLI not found — install from orbstack.dev, or set `docker` on PATH"
+            )
+        case .commandFailed(let reason):
+            throw BotOrchestratorError.orbStackNotAvailable(
+                "OrbStack found but returned unexpected output: \(reason)"
+            )
         }
-        print("✅ OrbStack verified")
         
         isRunning = true
         
@@ -79,9 +87,9 @@ public final class AIBotOrchestrator {
         // Start web server concurrently
         async let _ = webServer.start()
         
-        try await telegramBot.sendMessage(
+        try? await telegramBot.sendMessage(
             chatId: authorizedChatId,
-            text: "🤖 AI Bot started and ready!\n\nCommands:\n/status - Check bot status\n/run - Run tests with self-healing\n/containers - List containers\n/health - Health status"
+            text: "🤖 AI Bot started and ready!\n\nCommands:\n/status - Check bot status\n/run - Run tests with self-healing\n/containers - List containers\n/health - Health status\n/provider - Choose AI coding CLI\n/task - Run a prompt with the selected AI CLI"
         )
         
         while isRunning {
@@ -110,13 +118,13 @@ public final class AIBotOrchestrator {
     }
     
     public enum BotOrchestratorError: Error, LocalizedError {
-        case orbStackNotAvailable
+        case orbStackNotAvailable(String)
         case unauthorizedAccess
-        
+
         public var errorDescription: String? {
             switch self {
-            case .orbStackNotAvailable:
-                return "OrbStack is not available or not running"
+            case .orbStackNotAvailable(let reason):
+                return reason
             case .unauthorizedAccess:
                 return "Unauthorized access"
             }

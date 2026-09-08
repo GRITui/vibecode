@@ -31,7 +31,10 @@ public actor WebServer {
         self.sessionManager = MiniAppSessionManager()
     }
 
-    public func start() async throws {
+    /// Builds the Hummingbird router with all routes registered. Exposed (via `@testable import`)
+    /// so tests can exercise routes through `HummingbirdTesting`'s `.router` test framework
+    /// without binding a real port.
+    func buildRouter() -> Router<BasicRequestContext> {
         let router = Router()
 
         // Capture values for @Sendable route closures
@@ -78,6 +81,116 @@ public actor WebServer {
             )
             responseObj.headers[.contentType] = "application/json; charset=utf-8"
             return responseObj
+        }
+
+        // GET /dashboard — service-health dashboard UI
+        router.get("/dashboard") { _, _ async in
+            var response = Response(
+                status: .ok,
+                headers: .init(),
+                body: .init(byteBuffer: .init(string: DashboardHTML.render()))
+            )
+            response.headers[.contentType] = "text/html; charset=utf-8"
+            return response
+        }
+
+        // GET /roadmap.json — parses BACKLOG.md into kanban-ready sections
+        router.get("/roadmap.json") { _, _ async in
+            guard let markdown = try? String(contentsOfFile: "BACKLOG.md", encoding: .utf8) else {
+                var response = Response(
+                    status: .internalServerError,
+                    headers: .init(),
+                    body: .init(byteBuffer: .init(string: #"{"error":"Could not read BACKLOG.md"}"#))
+                )
+                response.headers[.contentType] = "application/json; charset=utf-8"
+                return response
+            }
+            let sections = BacklogParser.parse(markdown)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .sortedKeys
+            let data = (try? encoder.encode(sections)) ?? Data()
+            var response = Response(
+                status: .ok,
+                headers: .init(),
+                body: .init(byteBuffer: .init(data: data))
+            )
+            response.headers[.contentType] = "application/json; charset=utf-8"
+            return response
+        }
+
+        // GET /diagnostics — bot-not-responding diagnostics (ISS-2), reachable even if the
+        // Telegram polling loop itself is wedged, since this is served independently of it.
+        router.get("/diagnostics") { _, _ async in
+            let orbAvailability: String
+            switch await orbStack.checkAvailability() {
+            case .available(let version):
+                orbAvailability = "available(\(version))"
+            case .commandNotFound:
+                orbAvailability = "commandNotFound"
+            case .commandFailed(let reason):
+                orbAvailability = "commandFailed(\(reason))"
+            }
+
+            var telegramReachable = false
+            if let bot = telegramBot {
+                telegramReachable = (try? await bot.getMe()) ?? false
+            }
+
+            let lastCheck = await healthMonitor.getLastStatus()
+            let secondsSinceLastHealthCheck = lastCheck.map { Date().timeIntervalSince($0.timestamp) }
+
+            let diagnostics = DiagnosticsResponse(
+                telegramConfigured: telegramBot != nil,
+                telegramReachable: telegramReachable,
+                orbStackAvailability: orbAvailability,
+                secondsSinceLastHealthCheck: secondsSinceLastHealthCheck
+            )
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .sortedKeys
+            let data = (try? encoder.encode(diagnostics)) ?? Data()
+            var response = Response(
+                status: .ok,
+                headers: .init(),
+                body: .init(byteBuffer: .init(data: data))
+            )
+            response.headers[.contentType] = "application/json; charset=utf-8"
+            return response
+        }
+
+        // POST /health/delegate — delegate current health status to the small-model decision path
+        router.post("/health/delegate") { request, _ async throws -> Response in
+            await healthMonitor.runCheckCycle()
+            guard let prompt = await healthMonitor.generateSmallModelPrompt() else {
+                return Response(status: .noContent)
+            }
+
+            var decision = "alert"
+            if let buffer = try? await request.body.collect(upTo: 1024 * 1024) {
+                let bodyString = String(buffer: buffer)
+                struct DelegateRequest: Decodable { let decision: String }
+                if let bodyData = bodyString.data(using: .utf8),
+                   let parsed = try? JSONDecoder().decode(DelegateRequest.self, from: bodyData) {
+                    decision = parsed.decision
+                }
+            }
+
+            let result = await healthMonitor.applySmallModelDecision(decision)
+
+            struct DelegateResponse: Codable {
+                let prompt: String
+                let decision: String
+                let result: String
+            }
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .sortedKeys
+            let data = (try? encoder.encode(DelegateResponse(prompt: prompt, decision: decision, result: result))) ?? Data()
+            var response = Response(
+                status: .ok,
+                headers: .init(),
+                body: .init(byteBuffer: .init(data: data))
+            )
+            response.headers[.contentType] = "application/json; charset=utf-8"
+            return response
         }
 
         // POST /webhook/telegram — Telegram webhook receiver
@@ -291,6 +404,11 @@ public actor WebServer {
             return response
         }
 
+        return router
+    }
+
+    public func start() async throws {
+        let router = buildRouter()
         let app = Application(
             router: router,
             configuration: .init(address: .hostname("0.0.0.0", port: port))
@@ -299,6 +417,13 @@ public actor WebServer {
         try await app.run()
         print("🌐 Web server stopped")
     }
+}
+
+struct DiagnosticsResponse: Codable {
+    let telegramConfigured: Bool
+    let telegramReachable: Bool
+    let orbStackAvailability: String
+    let secondsSinceLastHealthCheck: Double?
 }
 
 struct StatusResponse: Codable {

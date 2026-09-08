@@ -93,6 +93,11 @@ public struct InlineKeyboardButton: Codable {
     }
 }
 
+public struct TelegramBotInfo: Codable {
+    public let id: Int
+    public let username: String?
+}
+
 // MARK: - API Response
 
 struct TelegramAPIResponse<T: Codable>: Codable {

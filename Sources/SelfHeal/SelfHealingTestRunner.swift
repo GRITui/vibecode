@@ -2,12 +2,12 @@ import Foundation
 import OrbStack
 
 public final class SelfHealingTestRunner {
-    private let orbStack: OrbStackManager
+    private let orbStack: any ContainerRuntime
     private let strategies: [HealingStrategy]
     private let maxHealingAttempts: Int
-    
+
     public init(
-        orbStack: OrbStackManager,
+        orbStack: any ContainerRuntime,
         strategies: [HealingStrategy]? = nil,
         maxHealingAttempts: Int = 3
     ) {
@@ -54,7 +54,7 @@ public final class SelfHealingTestRunner {
                 let failedResult = TestResult(
                     testName: "Test Suite",
                     passed: false,
-                    errorMessage: String(describing: error)
+                    errorMessage: Self.diagnosticMessage(for: error)
                 )
                 let suiteResult = TestSuiteResult(
                     results: [failedResult],
@@ -108,8 +108,31 @@ public final class SelfHealingTestRunner {
         return lastResult ?? TestSuiteResult(results: [], totalDuration: 0)
     }
     
+    // MARK: - Diagnostics (ISS-3)
+
+    /// Classifies an `execInContainer` failure into an actionable prefix so a failed test
+    /// run can be told apart from an environment problem (missing/stopped container) at a
+    /// glance, instead of surfacing an opaque `String(describing:)` dump.
+    static func diagnosticMessage(for error: Error) -> String {
+        switch error {
+        case OrbStackManager.OrbStackError.containerNotFound(let name):
+            return "[container-missing] Container '\(name)' not found"
+        case OrbStackManager.OrbStackError.commandFailed(_, let exitCode, let stderr):
+            let lowered = stderr.lowercased()
+            if lowered.contains("no such container") {
+                return "[container-missing] \(stderr)"
+            }
+            if lowered.contains("is not running") || lowered.contains("is not running or restarting") {
+                return "[container-stopped] \(stderr)"
+            }
+            return "[test-command-failed] exit code \(exitCode): \(stderr)"
+        default:
+            return "[test-command-failed] \(String(describing: error))"
+        }
+    }
+
     // MARK: - Private Helpers
-    
+
     private func attemptHealing(
         testResult: TestResult,
         context: HealingContext

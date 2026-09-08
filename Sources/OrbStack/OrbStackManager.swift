@@ -1,6 +1,16 @@
 import Foundation
 
-public final class OrbStackManager {
+/// Seam for the container operations used by health checks, healing actions, and self-healing test runs.
+/// Lets tests substitute a mock instead of shelling out to a real `docker`/OrbStack CLI.
+public protocol ContainerRuntime {
+    func startContainer(name: String) async throws
+    func stopContainer(name: String) async throws
+    func removeContainer(name: String, force: Bool) async throws
+    func getContainerStatus(name: String) async throws -> ContainerStatus?
+    func execInContainer(name: String, command: [String]) async throws -> String
+}
+
+public final class OrbStackManager: ContainerRuntime {
     private let dockerCommand: String
     
     public init(dockerCommand: String = "docker") {
@@ -105,14 +115,36 @@ public final class OrbStackManager {
     }
     
     // MARK: - OrbStack Specific
-    
-    public func verifyOrbStack() async throws -> Bool {
+
+    public enum OrbStackAvailability: Sendable, Equatable {
+        case available(version: String)
+        case commandNotFound
+        case commandFailed(String)
+    }
+
+    public func checkAvailability() async -> OrbStackAvailability {
         do {
             let output = try await runCommand(["--version"])
-            return output.contains("OrbStack") || output.contains("Docker")
+            let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+            if output.contains("OrbStack") || output.contains("Docker") {
+                return .available(version: trimmed)
+            }
+            return .commandFailed("Unrecognized version output: \(trimmed)")
+        } catch let OrbStackError.commandFailed(_, exitCode, error) {
+            if exitCode == 127 || error.localizedCaseInsensitiveContains("no such file or directory") {
+                return .commandNotFound
+            }
+            return .commandFailed(error)
         } catch {
-            return false
+            return .commandFailed(String(describing: error))
         }
+    }
+
+    public func verifyOrbStack() async throws -> Bool {
+        if case .available = await checkAvailability() {
+            return true
+        }
+        return false
     }
     
     // MARK: - Private Helpers

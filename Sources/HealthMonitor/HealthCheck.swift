@@ -77,5 +77,5 @@ public protocol HealthCheck {
 public protocol HealingAction {
     var name: String { get }
     func canHeal(_ health: ComponentHealth) -> Bool
-    func execute(target: String, orbStack: OrbStackManager) async throws -> Bool
+    func execute(target: String, orbStack: any ContainerRuntime) async throws -> Bool
 }

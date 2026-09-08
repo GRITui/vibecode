@@ -59,7 +59,8 @@ let package = Package(
             name: "VibeCodeTests",
             dependencies: [
                 "AIBot", "TelegramBot", "OrbStack", "SelfHeal", "HealthMonitor", "WebServer", "LLMConfig",
-                .product(name: "Testing", package: "swift-testing")
+                .product(name: "Testing", package: "swift-testing"),
+                .product(name: "HummingbirdTesting", package: "hummingbird")
             ],
             path: "Tests"
         )
