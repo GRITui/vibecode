@@ -10,9 +10,27 @@ public final class TelegramBotClient {
         self.baseUrl = "https://api.telegram.org/bot\(botToken)"
         self.session = URLSession(configuration: .default)
     }
-    
+
+    /// First 8 characters of the bot token, for diagnostics — never the full token.
+    public var tokenPrefix: String {
+        String(botToken.prefix(8))
+    }
+
+    // MARK: - Reachability
+
+    /// Calls Telegram's `getMe` endpoint — a lightweight reachability/token-validity probe
+    /// (distinct from polling `getUpdates`), used for bot-not-responding diagnostics (ISS-2).
+    public func getMe() async throws -> Bool {
+        guard let url = URL(string: "\(baseUrl)/getMe") else {
+            throw BotError.invalidURL
+        }
+        let (data, _) = try await session.data(from: url)
+        let response = try JSONDecoder().decode(TelegramAPIResponse<TelegramBotInfo>.self, from: data)
+        return response.ok
+    }
+
     // MARK: - Polling
-    
+
     public func getUpdates(offset: Int? = nil, timeout: Int = 30) async throws -> [TelegramUpdate] {
         var urlString = "\(baseUrl)/getUpdates?timeout=\(timeout)"
         if let offset = offset {

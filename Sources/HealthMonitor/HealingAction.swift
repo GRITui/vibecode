@@ -12,7 +12,7 @@ public struct RestartContainerAction: HealingAction {
         return !health.healthy && health.component.starts(with: "container:")
     }
     
-    public func execute(target: String, orbStack: OrbStackManager) async throws -> Bool {
+    public func execute(target: String, orbStack: any ContainerRuntime) async throws -> Bool {
         let containerName = target
         do {
             try await orbStack.stopContainer(name: containerName)
@@ -34,7 +34,7 @@ public struct RebuildContainerAction: HealingAction {
         return !health.healthy && health.component.starts(with: "container:")
     }
     
-    public func execute(target: String, orbStack: OrbStackManager) async throws -> Bool {
+    public func execute(target: String, orbStack: any ContainerRuntime) async throws -> Bool {
         let containerName = target
         do {
             try await orbStack.removeContainer(name: containerName, force: true)
@@ -60,7 +60,7 @@ public struct ClearCacheAction: HealingAction {
         )
     }
     
-    public func execute(target: String, orbStack: OrbStackManager) async throws -> Bool {
+    public func execute(target: String, orbStack: any ContainerRuntime) async throws -> Bool {
         let containerName = target
         _ = try await orbStack.execInContainer(
             name: containerName,
@@ -85,7 +85,7 @@ public struct DependencyHealAction: HealingAction {
         )
     }
     
-    public func execute(target: String, orbStack: OrbStackManager) async throws -> Bool {
+    public func execute(target: String, orbStack: any ContainerRuntime) async throws -> Bool {
         let containerName = target
         let commands = [
             ["npm", "install"],

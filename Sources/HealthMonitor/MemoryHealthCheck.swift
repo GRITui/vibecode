@@ -3,10 +3,10 @@ import OrbStack
 
 public struct MemoryHealthCheck: HealthCheck {
     public let componentName = "system:memory"
-    private let orbStack: OrbStackManager
+    private let orbStack: any ContainerRuntime
     private let containerName: String?
-    
-    public init(containerName: String? = nil, orbStack: OrbStackManager) {
+
+    public init(containerName: String? = nil, orbStack: any ContainerRuntime) {
         self.containerName = containerName
         self.orbStack = orbStack
     }

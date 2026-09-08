@@ -6,9 +6,9 @@ public struct TestRunnerHealthCheck: HealthCheck {
     private let containerName: String
     private let workingDir: String
     private let testCommand: String
-    private let orbStack: OrbStackManager
-    
-    public init(containerName: String, workingDir: String, testCommand: String, orbStack: OrbStackManager) {
+    private let orbStack: any ContainerRuntime
+
+    public init(containerName: String, workingDir: String, testCommand: String, orbStack: any ContainerRuntime) {
         self.containerName = containerName
         self.workingDir = workingDir
         self.testCommand = testCommand

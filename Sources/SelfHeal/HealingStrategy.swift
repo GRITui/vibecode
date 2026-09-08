@@ -10,9 +10,9 @@ public protocol HealingStrategy {
 public struct HealingContext {
     public let containerName: String
     public let workingDir: String
-    public let orbStack: OrbStackManager
-    
-    public init(containerName: String, workingDir: String, orbStack: OrbStackManager) {
+    public let orbStack: any ContainerRuntime
+
+    public init(containerName: String, workingDir: String, orbStack: any ContainerRuntime) {
         self.containerName = containerName
         self.workingDir = workingDir
         self.orbStack = orbStack

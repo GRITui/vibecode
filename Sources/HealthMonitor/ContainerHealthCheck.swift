@@ -4,9 +4,9 @@ import OrbStack
 public struct ContainerHealthCheck: HealthCheck {
     public let componentName: String
     private let containerName: String
-    private let orbStack: OrbStackManager
-    
-    public init(containerName: String, orbStack: OrbStackManager) {
+    private let orbStack: any ContainerRuntime
+
+    public init(containerName: String, orbStack: any ContainerRuntime) {
         self.containerName = containerName
         self.componentName = "container:\(containerName)"
         self.orbStack = orbStack
